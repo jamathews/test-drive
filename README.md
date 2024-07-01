@@ -1,1 +1,1 @@
-Fill a drive with pseudo-randomg data, and validate it.
+Fill a drive with pseudo-random data, and validate it.
