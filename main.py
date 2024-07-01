@@ -1,6 +1,9 @@
+#!/usr/bin/env python3
+
 import hashlib
 import os
 import sys
+from multiprocessing import Pool
 
 BLOCK_SIZE = 2 ** 20
 DISK_FULL_ERRNO = 28
@@ -17,6 +20,7 @@ def print_to_stdout(output, newline=False):
 
 def perform_disk_test(dest):
     test_index = 0
+    os.makedirs(dest, exist_ok=True)
     while True:
         try:
             print_to_stdout(f"{test_index=}", newline=True)
@@ -69,9 +73,14 @@ def verify_data_integrity(test_file, test_index, blocks_written):
 
 if __name__ == '__main__':
     # Check if the destination is provided and if not, print a usage message and exit
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print(f"Usage: python3 {sys.argv[0]} <disk_test_dest>")
         sys.exit(1)
 
-    perform_disk_test(sys.argv[1])
+    destinations = sys.argv[1:]
+
+    # Create a new Pool of processes
+    with Pool(processes=len(destinations)) as process_pool:
+        # Use the Pool to map the perform_disk_test function onto each destination
+        process_pool.map(perform_disk_test, destinations)
     sys.exit(0)
