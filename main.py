@@ -18,19 +18,28 @@ def print_to_stdout(output, newline=False):
     sys.stdout.flush()
 
 
-def perform_disk_test(dest):
+def is_disk_full_error(e):
+    return e.errno == DISK_FULL_ERRNO
+
+
+def calculate_test_file_path(disk_test_destination, test_index):
+    test_file_name = f"test-{str(test_index).zfill(16)}.dat"
+    return os.path.join(disk_test_destination, test_file_name)
+
+
+def perform_disk_test(disk_test_destination):
     test_index = 0
-    os.makedirs(dest, exist_ok=True)
+    os.makedirs(disk_test_destination, exist_ok=True)
     while True:
         try:
             print_to_stdout(f"{test_index=}", newline=True)
-            test_file = os.path.join(dest, f"test-{str(test_index).zfill(16)}.dat")
-            blocks_written = write_data_to_disk(test_file, test_index)
+            test_file_path = calculate_test_file_path(disk_test_destination, test_index)
+            blocks_written = write_data_to_disk(test_file_path, test_index)
             print_to_stdout("\n")
-            verify_data_integrity(test_file, test_index, blocks_written)
+            verify_data_integrity(test_file_path, test_index, blocks_written)
             print_to_stdout("\n")
         except OSError as e:
-            if e.errno == DISK_FULL_ERRNO:
+            if is_disk_full_error(e):
                 break
         test_index += 1
 
@@ -43,7 +52,7 @@ def write_data_to_disk(test_file, test_index):
             with open(test_file, 'ab') as file:
                 file.write(sha_signature.digest())
         except OSError as e:
-            if e.errno == DISK_FULL_ERRNO:
+            if is_disk_full_error(e):
                 break
         finally:
             block_number += 1
@@ -72,15 +81,10 @@ def verify_data_integrity(test_file, test_index, blocks_written):
 
 
 if __name__ == '__main__':
-    # Check if the destination is provided and if not, print a usage message and exit
     if len(sys.argv) < 2:
         print(f"Usage: python3 {sys.argv[0]} <disk_test_dest>")
         sys.exit(1)
-
-    destinations = sys.argv[1:]
-
-    # Create a new Pool of processes
-    with Pool(processes=len(destinations)) as process_pool:
-        # Use the Pool to map the perform_disk_test function onto each destination
-        process_pool.map(perform_disk_test, destinations)
+    disk_test_destinations = sys.argv[1:]
+    with Pool(processes=len(disk_test_destinations)) as process_pool:
+        process_pool.map(perform_disk_test, disk_test_destinations)
     sys.exit(0)
