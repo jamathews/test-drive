@@ -1,73 +1,73 @@
-#!/usr/bin/env python3
-
 import os
 import sys
+import hashlib
 
 BLOCK_SIZE = 2 ** 20
 DEST = "/volume6/DeadShareTest"
+DISK_FULL_ERRNO = 28
 
-import hashlib
+
+def generate_hash_signature(data):
+    return hashlib.sha512(str(data).encode())
 
 
-def test_disk():
+def print_to_stdout(output, newline=False):
+    sys.stdout.write(f"{output}\n" if newline else output)
+    sys.stdout.flush()
+
+
+def perform_disk_test():
     test_index = 0
     while True:
         try:
-            print(f"{test_index=}")
-
+            print_to_stdout(f"{test_index=}", newline=True)
             test_file = os.path.join(DEST, f"test-{str(test_index).zfill(16)}.dat")
-            blocks_written = write_test_data(test_file, test_index)
-            sys.stdout.flush()
-            print()
-
-            check_test_data(test_file, test_index, blocks_written)
-            sys.stdout.flush()
-            print()
+            blocks_written = write_data_to_disk(test_file, test_index)
+            print_to_stdout("\n")
+            verify_data_integrity(test_file, test_index, blocks_written)
+            print_to_stdout("\n")
         except OSError as e:
-            if e.errno == 28:  # There is no space left on the device
+            if e.errno == DISK_FULL_ERRNO:
                 break
         test_index += 1
 
 
-def write_test_data(test_file, test_index):
+def write_data_to_disk(test_file, test_index):
     block_number = test_index * BLOCK_SIZE
     while True:
         try:
-            sha_signature = hashlib.sha512(str(block_number).encode())
-
+            sha_signature = generate_hash_signature(block_number)
             with open(test_file, 'ab') as file:
                 file.write(sha_signature.digest())
         except OSError as e:
-            if e.errno == 28:  # There is no space left on the device
+            if e.errno == DISK_FULL_ERRNO:
                 break
         finally:
             block_number += 1
-            sys.stdout.write(f"\rWritten {block_number}")
-            sys.stdout.flush()
+            print_to_stdout(f"\rWritten {block_number}")
         if block_number == (test_index + 1) * BLOCK_SIZE:
             break
     return block_number
 
 
-def check_test_data(test_file, test_index, blocks_written):
+def verify_data_integrity(test_file, test_index, blocks_written):
     block_number = test_index * BLOCK_SIZE
     with open(test_file, 'rb') as f:
         while True:
-            sha_signature = hashlib.sha512(str(block_number).encode())
+            sha_signature = generate_hash_signature(block_number)
             from_disk = f.read(64)
             block_number += 1
             if not from_disk:
                 break
-            if not from_disk == sha_signature.digest():
-                print()
-                print(from_disk)
-                print(sha_signature.digest())
+            if from_disk != sha_signature.digest():
+                print_to_stdout("\n")
+                print_to_stdout(from_disk)
+                print_to_stdout(sha_signature.digest())
                 raise Exception(f"mismatch at block {block_number}")
             else:
-                sys.stdout.write(f"\rChecked {block_number}/{blocks_written}")
-                sys.stdout.flush()
+                print_to_stdout(f"\rChecked {block_number}/{blocks_written}")
 
 
 if __name__ == '__main__':
-    test_disk()
+    perform_disk_test()
     sys.exit(0)
