@@ -1,9 +1,8 @@
+import hashlib
 import os
 import sys
-import hashlib
 
 BLOCK_SIZE = 2 ** 20
-DEST = "/volume6/DeadShareTest"
 DISK_FULL_ERRNO = 28
 
 
@@ -16,12 +15,12 @@ def print_to_stdout(output, newline=False):
     sys.stdout.flush()
 
 
-def perform_disk_test():
+def perform_disk_test(dest):
     test_index = 0
     while True:
         try:
             print_to_stdout(f"{test_index=}", newline=True)
-            test_file = os.path.join(DEST, f"test-{str(test_index).zfill(16)}.dat")
+            test_file = os.path.join(dest, f"test-{str(test_index).zfill(16)}.dat")
             blocks_written = write_data_to_disk(test_file, test_index)
             print_to_stdout("\n")
             verify_data_integrity(test_file, test_index, blocks_written)
@@ -69,5 +68,10 @@ def verify_data_integrity(test_file, test_index, blocks_written):
 
 
 if __name__ == '__main__':
-    perform_disk_test()
+    # Check if the destination is provided and if not, print a usage message and exit
+    if len(sys.argv) != 2:
+        print(f"Usage: python3 {sys.argv[0]} <disk_test_dest>")
+        sys.exit(1)
+
+    perform_disk_test(sys.argv[1])
     sys.exit(0)
